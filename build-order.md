@@ -19,11 +19,11 @@ Ordering principles, since three stages sit earlier than feels natural:
 
 No data, no models. Services that come up and a schema that holds results.
 
-- [ ] **A1. n8n + Postgres via Docker Compose.** Two services, named volume for
+- [x] **A1. n8n + Postgres via Docker Compose.** Two services, named volume for
       Postgres, host port off the default to avoid collisions.
       *Done:* n8n reachable in the browser, `psql` connects.
 
-- [ ] **A2. Schema.** `sql/schema.sql`: one table for company results, one for
+- [x] **A2. Schema.** `sql/schema.sql`: one table for company results, one for
       token usage per LLM call (model, prompt tokens, completion tokens,
       company, timestamp). The usage table exists now, not in Phase C.
       *Done:* applies cleanly against an empty database.
@@ -39,11 +39,16 @@ No data, no models. Services that come up and a schema that holds results.
       exposed the `growth`/`revenue`/`marketing` false positives now excluded in
       the role definition. The script is finished; it does not get polished.
 
-- [ ] **B2. Fetch.** HTTP Request node paginating until an empty page. No
+- [x] **B2. Fetch.** HTTP Request node paginating until an empty page. No
       filtering yet.
       *Done:* raw job count in n8n roughly matches the spike, and the real size
       of the feed is known — the API may only serve a time window, not the
       ~11,800 the website advertises.
+      *Outcome (2026-11-20):* 17 pages, 3,901 jobs, 3,681 unique slugs. The API
+      serves about a third of what the website advertises, so it is a window,
+      not the full board. ~5.6% duplicates across pages (the feed shifts while
+      paging; the spike saw the same: 1,500 → 1,432 unique), so B3's dedupe is
+      required, not defensive. The window's length in days is not measured.
 
 - [ ] **B3. Filter → dedupe → aggregate → pre-filter.** Title match per the role
       definition, dedupe on company + job id, aggregate per company (role count,
