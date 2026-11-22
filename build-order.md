@@ -44,17 +44,34 @@ No data, no models. Services that come up and a schema that holds results.
       *Done:* raw job count in n8n roughly matches the spike, and the real size
       of the feed is known — the API may only serve a time window, not the
       ~11,800 the website advertises.
-      *Outcome (2026-11-20):* 17 pages, 3,901 jobs, 3,681 unique slugs. The API
+      *Outcome (2026-11-20):* 17 requests (16 pages of jobs + the empty end
+      page), 3,901 jobs, 3,681 unique slugs. The API
       serves about a third of what the website advertises, so it is a window,
       not the full board. ~5.6% duplicates across pages (the feed shifts while
       paging; the spike saw the same: 1,500 → 1,432 unique), so B3's dedupe is
       required, not defensive. The window's length in days is not measured.
 
-- [ ] **B3. Filter → dedupe → aggregate → pre-filter.** Title match per the role
+- [x] **B3. Filter → dedupe → aggregate → pre-filter.** Title match per the role
       definition, dedupe on company + job id, aggregate per company (role count,
       first/latest posting, cities), keep companies with ≥2 roles.
       *Done — the Day 1 goal:* a list of real companies with signal counts in
       Postgres.
+      *Outcome (2026-11-22):* 15 requests (14 pages + empty end page), 3,200
+      unique jobs, 513 target-role jobs, 276 companies with ≥1 role, **69 with
+      ≥2** (39 with ≥3, 15 with ≥5). All jobs are stored, not only matches; ≥2
+      is a query, not a deletion. Dedupe is on `slug` (Arbeitnow's job id).
+      Two additions to the plan: a `Create snapshot` node (jobs need a
+      `snapshot_id`) and a `Drop empty page` filter (the empty end page became
+      one blank item after Split Out).
+      *Findings:*
+      - The feed shrank from 3,901 to 3,200 jobs in two days. Consistent with a
+        moving window; not verified.
+      - Five "companies" post identical template titles ("Graduate sales
+        executive at …"): Privateequityinsights 21, Hrtechx 9, United Media 9,
+        Retailinsights 9, Cfoinsights 9 — 57 roles, likely one sender. Not
+        filtered in the pipeline; decide in C1 how many may enter the sample.
+      - `cities` holds raw `location` text ("Paris, France; Bordeaux, …"), not
+        clean city names. Cosmetic, left as is.
 
 - [ ] **B4. Freeze the snapshot.** Export qualifying companies and their job text
       to `data/raw/`. Everything downstream reads this file, never a live fetch.
