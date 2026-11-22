@@ -38,7 +38,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        224,
+        448,
         0
       ],
       "id": "e314c395-fe84-4148-b963-db336b3c3281",
@@ -52,7 +52,7 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1.1,
       "position": [
-        448,
+        672,
         0
       ],
       "id": "75a9efbd-59f0-40ba-a38c-9757d672add4",
@@ -60,27 +60,262 @@
     },
     {
       "parameters": {
-        "fieldsToSummarize": {
-          "values": [
+        "operation": "executeQuery",
+        "query": "insert into snapshots (job_count, note) values (0, 'B3 run') returning id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        224,
+        0
+      ],
+      "id": "53a91668-167a-4402-a99e-5a6d6b3d2601",
+      "name": "Create snapshot",
+      "credentials": {
+        "postgres": {
+          "id": "TnGxOSXcYaUjBF5F",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "slug",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "2237efbc-612a-4c87-99d9-fc2c96f9570f",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Role definition, single source of truth: CLAUDE.md.\n// Must match scripts/brief.py later. Same word boundaries as the spike.\nconst ROLES = /\\bsales\\b|\\bvertrieb|\\baccount executive\\b|\\baccount manager|\\bsdr\\b|\\bbdr\\b|\\bbusiness development|\\bkundenberater|\\baußendienst|\\binside sales\\b|\\bpre-?sales\\b|\\bpartner manager/i;\nconst MARKETING = /\\bmarketing/i;\nconst MARKETING_EXCLUDE = /engineer|developer|linguist/i;\n\nfunction isTargetRole(title) {\n  if (ROLES.test(title)) return true;\n  return MARKETING.test(title) && !MARKETING_EXCLUDE.test(title);\n}\n\n// Same normalisation as the spike: \"Acme GmbH\" and \"Acme Group\" -> \"acme\"\nconst LEGAL = /\\b(gmbh|mbh|ag|se|kg|ohg|ug|e\\.?\\s?v\\.?|co\\.?\\s?kg|holding|group|deutschland|germany|inc\\.?|ltd\\.?|llc|b\\.?v\\.?)\\b/gi;\n\nfunction companyKey(name) {\n  return (name || '')\n    .replace(LEGAL, ' ')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .toLowerCase();\n}\n\nconst snapshotId = $('Create snapshot').first().json.id;\n\nreturn $input.all().map(item => {\n  const j = item.json;\n  return { json: {\n    snapshot_id: snapshotId,\n    slug: j.slug,\n    company_name: (j.company_name || '').trim(),\n    company_key: companyKey(j.company_name),\n    title: j.title || '',\n    location: j.location || null,\n    remote: j.remote,\n    url: j.url,\n    description: j.description,\n    posted_at: j.created_at ? new Date(j.created_at * 1000).toISOString() : null,\n    is_target_role: isTargetRole(j.title || ''),\n  }};\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "f8fc14ac-9e2b-494d-aa6f-b990be6f3066",
+      "name": "Tag jobs"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "jobs",
+          "mode": "list",
+          "cachedResultName": "jobs"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "remote": false,
+            "is_target_role": false
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
             {
-              "field": "slug"
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
             },
             {
-              "aggregation": "countUnique",
-              "field": "slug"
+              "id": "snapshot_id",
+              "displayName": "snapshot_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "slug",
+              "displayName": "slug",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company_key",
+              "displayName": "company_key",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "remote",
+              "displayName": "remote",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posted_at",
+              "displayName": "posted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_target_role",
+              "displayName": "is_target_role",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
             }
-          ]
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.summarize",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
       "position": [
-        672,
+        1568,
         0
       ],
-      "id": "7ee21669-c36f-4fea-bc70-05c878f7181d",
-      "name": "Summarize"
+      "id": "49bc1e58-15b9-4ffd-ad5a-c68432043499",
+      "name": "Insert job",
+      "credentials": {
+        "postgres": {
+          "id": "TnGxOSXcYaUjBF5F",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into companies (snapshot_id, company_key, company_name, role_count,\n                       first_posting_at, latest_posting_at, cities)\nselect snapshot_id,\n       company_key,\n       (array_agg(company_name order by posted_at))[1],\n       count(*),\n       min(posted_at),\n       max(posted_at),\n       array_agg(distinct location) filter (where location <> '')\nfrom jobs\nwhere snapshot_id = {{ $('Create snapshot').first().json.id }}\n  and is_target_role\n  and company_key <> ''\ngroup by snapshot_id, company_key;\n\nupdate snapshots\nset job_count  = (select count(*) from jobs where snapshot_id = {{ $('Create snapshot').first().json.id }}),\n    page_count = {{ $('HTTP Request').all().length }}\nwhere id = {{ $('Create snapshot').first().json.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        1792,
+        0
+      ],
+      "id": "1da824d5-9fde-4fbe-aff5-d51b461cca7c",
+      "name": "Build companies",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "TnGxOSXcYaUjBF5F",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "ebd20f55-ddd8-4d63-b833-f2ad997a41a1",
+              "leftValue": "={{ $json.slug }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "={{ false }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        0
+      ],
+      "id": "adb1a8e8-e5d5-4538-a2dd-c9082cabfb43",
+      "name": "drop empty pages"
     }
   ],
   "pinData": {},
@@ -89,7 +324,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Create snapshot",
             "type": "main",
             "index": 0
           }
@@ -111,7 +346,62 @@
       "main": [
         [
           {
-            "node": "Summarize",
+            "node": "drop empty pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create snapshot": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Tag jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag jobs": {
+      "main": [
+        [
+          {
+            "node": "Insert job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert job": {
+      "main": [
+        [
+          {
+            "node": "Build companies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "drop empty pages": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
             "type": "main",
             "index": 0
           }
@@ -124,8 +414,9 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "73496ea0-e8c4-4693-83c8-d05ee9c3e61c",
+  "versionId": "a8fa5f12-5ae9-4a21-99fc-588899819d42",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "8601232c3e7e0dbe3bd1d258686907407afbf8adaa31f7a137ebfaccd73dd28e"
   },
   "nodeGroups": [],
