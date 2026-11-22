@@ -62,7 +62,7 @@ No data, no models. Services that come up and a schema that holds results.
       is a query, not a deletion. Dedupe is on `slug` (Arbeitnow's job id).
       Two additions to the plan: a `Create snapshot` node (jobs need a
       `snapshot_id`) and a `Drop empty page` filter (the empty end page became
-      one blank item after Split Out).
+      one blank item after Split Out; it drops exactly 1 item per run).
       *Findings:*
       - The feed shrank from 3,901 to 3,200 jobs in two days. Consistent with a
         moving window; not verified.
@@ -76,6 +76,15 @@ No data, no models. Services that come up and a schema that holds results.
 - [ ] **B4. Freeze the snapshot.** Export qualifying companies and their job text
       to `data/raw/`. Everything downstream reads this file, never a live fetch.
       *Done:* the file exists, row count stable, and it is not committed.
+      *Outcome (2026-11-22):* `data/raw/eval_snapshot_3.json` (2.2 MB) via
+      `sql/export_snapshot.sql`, from snapshot 3: 69 companies, 306 target-role
+      postings with full description (raw HTML), no empty descriptions,
+      `role_count` matches the exported postings for every company. Exported
+      twice, byte-identical. SHA-256:
+      `00bf78c8a4de3cfcee6aa16a94982a7aa6ffcb858193913398630099d1c21ee1`.
+      Done in `psql`, not n8n: the n8n container cannot see the repo.
+      The older `arbeitnow_20261120T133926Z.json` in the same folder is the
+      B1 spike's raw feed, not the evaluation input.
 
 ---
 
