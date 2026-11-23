@@ -31,6 +31,11 @@ services:
       - "127.0.0.1:5678:5678"
     volumes:
       - n8n_data:/home/node/.n8n
+      # Read-only: n8n reads the frozen snapshot and the versioned prompt
+      # from the repo, but cannot change them. n8n 2.x file nodes only
+      # read below ~/.n8n-files.
+      - ./data/raw:/home/node/.n8n-files/raw:ro
+      - ./prompts:/home/node/.n8n-files/prompts:ro
     depends_on:
       postgres:
         condition: service_healthy
