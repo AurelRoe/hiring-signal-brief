@@ -92,7 +92,7 @@ No data, no models. Services that come up and a schema that holds results.
 
 Two model paths, cheap and expensive, with a measured trade-off between them.
 
-- [ ] **C1. Sample and label criterion 1.** 30 companies from the snapshot.
+- [x] **C1. Sample and label criterion 1.** 30 companies from the snapshot.
       By hand, from the postings: *is this company actually hiring for that
       function?* No model involved yet.
       *Done:* 30 rows, each a yes/no; every "no" names the deciding rule
@@ -107,12 +107,35 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       during labelling: rule 2 now requires selling/marketing to be the main
       job, not one task among several.
 
-- [ ] **C2. LLM node, small model.** Structured JSON: `hiring_focus`,
+- [x] **C2. LLM node, small model.** Structured JSON: `hiring_focus`,
       `team_context`, `personalization_line`, `confidence`, `evidence`. A
       response with an empty `evidence` field is logged as a failure, never
       repaired. Prompt versioned as a file. Output language fixed in the prompt,
       since input may be French.
       *Done:* 30 valid records with token counts for all of them.
+      *Outcome (2026-11-23):* n8n workflow `Brief companies` →
+      `claude-haiku-5-5`, effort `medium`, structured output (JSON schema),
+      prompt `prompts/brief_v1.md` (run_label `v1`), no refusal fallback.
+      n8n reads the frozen snapshot and the prompt through a read-only mount.
+      30 calls, 30 briefs, all `end_turn`, all served by Haiku. Tokens:
+      255,468 in (avg 8,516), 25,922 out incl. thinking (avg 864). Cost about
+      $0.04 total, $0.0013 per record at list price ($0.10 / $0.50 per 1M).
+      Two additions to the plan: an `is_real_signal` field (the model's own
+      verdict on criterion 1, so signal accuracy can differ per model) and
+      evidence ordered before the line in the schema.
+      *Plan correction:* "empty `evidence` = failure" conflated two cases.
+      9 of 30 records have empty evidence, but all 9 also have an empty line
+      and `is_real_signal = false`: the model abstained rather than wrote an
+      unsupported line. Lines written without evidence: 0. Stored data stays
+      as returned (status `no_evidence`, never repaired); C4 reports
+      "evidence missing on a written line" and "abstained" as separate rows.
+      The "30 valid records" criterion is therefore read as 30 records with
+      token counts, 21 of them with a line and evidence.
+      *Early signal result (C4 material):* Haiku vs C1 labels 23/30. All 8
+      title-filter false positives caught, 7 labelled-real companies
+      rejected, 0 false "real". Too few records to call it better than the
+      filter's 22/30; the error pattern (too strict, never too lenient) is
+      the finding.
 
 - [ ] **C3. Label criterion 2, then the large model.** Per record: *is the line
       supported by the quoted evidence, or invented?* Then the same 30 through
