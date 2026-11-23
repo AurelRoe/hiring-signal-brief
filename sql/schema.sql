@@ -94,6 +94,12 @@ create table if not exists briefs (
     unique (company_id, model, run_label)
 );
 
+-- Added in C2: the model's own verdict on criterion 1, scored against
+-- labels_signal. Lets signal accuracy differ per model; without it, both
+-- models would inherit the same company-level label.
+-- run_label holds the prompt version (e.g. 'v1').
+alter table briefs add column if not exists is_real_signal boolean;
+
 -- ---------------------------------------------------------------------------
 -- 5. llm_calls -- token usage, one row per API call
 -- ---------------------------------------------------------------------------
@@ -114,7 +120,7 @@ create table if not exists llm_calls (
                           (prompt_tokens + completion_tokens) stored,
     cost_usd          numeric(10,6),
     latency_ms        integer,
-    status            text    not null default 'ok',  -- ok | invalid_json | no_evidence | api_error
+    status            text    not null default 'ok',  -- ok | no_evidence | invalid_output | refusal | max_tokens | api_error
     called_at         timestamptz not null default now()
 );
 
@@ -165,7 +171,11 @@ select
     lc.completion_tokens,
     lc.total_tokens,
     lc.cost_usd,
-    b.confidence
+    b.confidence,
+    -- appended in C2 (a replaced view may only gain columns at the end)
+    b.run_label,
+    b.is_real_signal                  as model_says_signal,
+    (b.is_real_signal = ls.is_correct) as model_signal_correct
 from companies c
 join briefs b              on b.company_id = c.id
 left join labels_signal ls on ls.company_id = c.id
