@@ -3,3 +3,6 @@
 __pycache__/
 data/raw/
 *.csv
+
+# Hand labels are committed (no job text in them)
+!data/labels/*.csv
