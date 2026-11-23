@@ -1,0 +1,31 @@
+company_id,company_name,is_correct,reason
+69,Alan,true,
+72,Alta Ares,false,r3
+95,Bsteuern,false,r2
+105,Checkout.com,true,
+115,databricks,true,
+120,Deliveroo,false,r4
+130,Elliptic,true,
+136,Eye Security,true,
+172,idealo internet GmbH,false,r3
+173,Ideals,true,
+177,Instagrid,false,r4
+194,Lightspeedhq,true,
+210,MY Humancapital GmbH,true,
+214,Netcetera,true,
+244,prettyTELCO GmbH,true,
+254,Retailinsights,true,
+259,Rubrik,true,
+265,Salonkee,true,
+291,Studytube,true,
+297,Tebi,true,
+301,thequalitygroupgmbh1,false,r4
+309,TransPerfect,true,
+319,Vanta,true,
+325,Viralnation,true,
+326,Vivenu,true,
+327,Voodoo,false,r2
+328,Wavestone Germany AG,true,
+329,Western Union Retail Services Germany GmbH,false,r2
+331,wppmedia,true,
+336,Zefir,true,
