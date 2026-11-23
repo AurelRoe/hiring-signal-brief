@@ -1,0 +1,302 @@
+{
+  "name": "Brief companies",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "db80e9e0-f26c-4c20-b720-426c17b00363",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/raw/eval_snapshot_3.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        0
+      ],
+      "id": "b70fa886-f203-468c-947f-214b93dbeefd",
+      "name": "Read snapshot"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "c7a8d340-dd51-48ff-9b2c-2ec517a790b2",
+      "name": "Parse snapshot"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/prompts/brief_v1.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        0
+      ],
+      "id": "7971fdbb-2a4d-440d-8fc1-64222f20bdba",
+      "name": "Read prompt"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        688,
+        0
+      ],
+      "id": "273f1abf-9588-4569-ad39-8d241a150d92",
+      "name": "Prompt text"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id from companies where in_eval_set order by id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        848,
+        0
+      ],
+      "id": "c3af5b01-56db-43a3-98c2-554aa79a57d1",
+      "name": "Eval IDs",
+      "credentials": {
+        "postgres": {
+          "id": "TnGxOSXcYaUjBF5F",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version ",
+              "value": "2026-10-21"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "393f053a-f29f-4534-bca4-272cdc43f6f7",
+      "name": "Call Claude",
+      "retryOnFail": true,
+      "waitBetweenTries": 4999,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "nK0tOdcKJGV2ulpa",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const reqs = $('Build requests').all();\n\nreturn $input.all().map((item, i) => {\n  const r = item.json;\n  const req = reqs[i].json;\n  const rec = {\n    company_id: req.company_id, model: req.model, run_label: req.run_label,\n    prompt_tokens: r.usage?.input_tokens ?? 0,\n    completion_tokens: r.usage?.output_tokens ?? 0,   // includes thinking tokens\n    has_brief: false, raw_response: r,\n  };\n\n  if (r.error || !r.usage)            rec.status = 'api_error';\n  else if (r.stop_reason === 'refusal')    rec.status = 'refusal';\n  else if (r.stop_reason === 'max_tokens') rec.status = 'max_tokens';\n  else {\n    const text = (r.content || []).filter(b => b.type === 'text').map(b => b.text).join('');\n    try {\n      const out = JSON.parse(text);\n      const ok = typeof out.confidence === 'number' && out.confidence >= 0 && out.confidence <= 1;\n      Object.assign(rec, out, { has_brief: true, confidence: ok ? out.confidence : null });\n      // Never repaired: empty evidence is stored as it came back and flagged.\n      rec.status = !(out.evidence || '').trim() ? 'no_evidence'\n                 : ok ? 'ok' : 'invalid_output';\n    } catch (e) {\n      rec.status = 'invalid_output';\n    }\n  }\n  return { json: { payload: JSON.stringify(rec), status: rec.status, company_id: rec.company_id } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "76a4978b-f048-4eee-b165-f4467c319691",
+      "name": "Parse response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "with r as (select $1::jsonb as j),\nb as (\n  insert into briefs (company_id, model, run_label, is_real_signal, hiring_focus,\n                      team_context, evidence, personalization_line, confidence, raw_response)\n  select (j->>'company_id')::bigint, j->>'model', j->>'run_label',\n         (j->>'is_real_signal')::boolean, j->>'hiring_focus', j->>'team_context',\n         j->>'evidence', j->>'personalization_line', (j->>'confidence')::numeric,\n         j->'raw_response'\n  from r where (j->>'has_brief')::boolean\n  returning id\n)\ninsert into llm_calls (company_id, brief_id, model, prompt_tokens, completion_tokens, status)\nselect (j->>'company_id')::bigint, (select id from b), j->>'model',\n       (j->>'prompt_tokens')::int, (j->>'completion_tokens')::int, j->>'status'\nfrom r;",
+        "options": {
+          "queryReplacement": "={{ [ $json.payload ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "90ddb354-5e3e-4aed-b357-6005a087fb70",
+      "name": "Save",
+      "credentials": {
+        "postgres": {
+          "id": "TnGxOSXcYaUjBF5F",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Run settings. C3 changes MODEL; a new prompt file changes PROMPT_VERSION.\nconst MODEL = 'claude-haiku-5-5';\nconst PROMPT_VERSION = 'v1';\nconst EFFORT = 'medium';      // same for both models, so only the model differs\nconst TEST_LIMIT = 30;         // 0 = all 30\n\nconst companies = $('Parse snapshot').first().json.data;\nconst system = $('Prompt text').first().json.data;\nconst evalIds = new Set($input.all().map(i => Number(i.json.id)));\n\nfunction toText(html) {\n  return (html || '')\n    .replace(/<br\\s*\\/?>|<\\/p>|<\\/li>|<\\/h\\d>/gi, '\\n')\n    .replace(/<[^>]+>/g, '')\n    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&nbsp;/g, ' ')\n    .replace(/[ \\t]+/g, ' ')\n    .replace(/\\n\\s*\\n+/g, '\\n\\n')\n    .trim();\n}\n\nconst schema = {\n  type: 'object',\n  properties: {\n    is_real_signal: { type: 'boolean' },\n    hiring_focus: { type: 'string' },\n    team_context: { type: 'string' },\n    evidence: { type: 'string' },\n    personalization_line: { type: 'string' },\n    confidence: { type: 'number' },\n  },\n  required: ['is_real_signal', 'hiring_focus', 'team_context',\n             'evidence', 'personalization_line', 'confidence'],\n  additionalProperties: false,\n};\n\nconst selected = companies.filter(c => evalIds.has(c.company_id));\nreturn selected.slice(0, TEST_LIMIT || selected.length).map(c => {\n  // Identical descriptions are sent once: same information, fewer tokens.\n  const seen = new Map();\n  const parts = c.jobs.map((j, i) => {\n    const head = `### Posting ${i + 1}: ${j.title}\\n` +\n                 `Location: ${j.location || 'unknown'} | Posted: ${(j.posted_at || '').slice(0, 10)}`;\n    const text = toText(j.description);\n    if (seen.has(text)) return `${head}\\nDescription identical to posting ${seen.get(text)}.`;\n    seen.set(text, i + 1);\n    return `${head}\\n${text}`;\n  });\n  return { json: {\n    company_id: c.company_id,\n    model: MODEL,\n    run_label: PROMPT_VERSION,\n    request: {\n      model: MODEL,\n      max_tokens: 16000,\n      output_config: { effort: EFFORT, format: { type: 'json_schema', schema } },\n      system,\n      messages: [{ role: 'user', content: `Company: ${c.company_name}\\n\\n${parts.join('\\n\\n')}` }],\n    },\n  }};\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "d5315b7d-466d-4293-88bb-f11d8fc9541b",
+      "name": "Build requests"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read snapshot": {
+      "main": [
+        [
+          {
+            "node": "Parse snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse snapshot": {
+      "main": [
+        [
+          {
+            "node": "Read prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read prompt": {
+      "main": [
+        [
+          {
+            "node": "Prompt text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt text": {
+      "main": [
+        [
+          {
+            "node": "Eval IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eval IDs": {
+      "main": [
+        [
+          {
+            "node": "Build requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse response": {
+      "main": [
+        [
+          {
+            "node": "Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build requests": {
+      "main": [
+        [
+          {
+            "node": "Call Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a2d85283-aa9a-4c34-9104-f5460874ab81",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8601232c3e7e0dbe3bd1d258686907407afbf8adaa31f7a137ebfaccd73dd28e"
+  },
+  "nodeGroups": [],
+  "id": "17vKoX7yngcJIayM",
+  "tags": []
+}
