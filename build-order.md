@@ -73,7 +73,7 @@ No data, no models. Services that come up and a schema that holds results.
       - `cities` holds raw `location` text ("Paris, France; Bordeaux, …"), not
         clean city names. Cosmetic, left as is.
 
-- [ ] **B4. Freeze the snapshot.** Export qualifying companies and their job text
+- [x] **B4. Freeze the snapshot.** Export qualifying companies and their job text
       to `data/raw/`. Everything downstream reads this file, never a live fetch.
       *Done:* the file exists, row count stable, and it is not committed.
       *Outcome (2026-11-22):* `data/raw/eval_snapshot_3.json` (2.2 MB) via
@@ -95,7 +95,17 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
 - [ ] **C1. Sample and label criterion 1.** 30 companies from the snapshot.
       By hand, from the postings: *is this company actually hiring for that
       function?* No model involved yet.
-      *Done:* 30 rows, each a yes/no with a one-line reason.
+      *Done:* 30 rows, each a yes/no; every "no" names the deciding rule
+      from `data/labels/c1_rubric.md`.
+      *Outcome (2026-11-23):* sample drawn by `scripts/c1_sample.py`
+      (deterministic, seed `c1`, refuses a snapshot with a different hash).
+      Labels in `data/labels/c1_signal.csv`, loaded into `labels_signal`.
+      **22 of 30 correct, 8 false positives**, so the title pre-filter's
+      precision is 73% (95% Wilson interval roughly 56–86%: 30 records is a
+      small sample). False positives by rule: r2 not a sales/marketing role 3,
+      r4 duplicate posting 3, r3 intern 2, r1 recruiter 0. Rubric refined
+      during labelling: rule 2 now requires selling/marketing to be the main
+      job, not one task among several.
 
 - [ ] **C2. LLM node, small model.** Structured JSON: `hiring_focus`,
       `team_context`, `personalization_line`, `confidence`, `evidence`. A
