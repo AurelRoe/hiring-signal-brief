@@ -139,7 +139,7 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       filter's 22/30; the error pattern (too strict, never too lenient) is
       the finding.
 
-- [ ] **C3. Label criterion 2, then the large model.** Per record: *is the line
+- [x] **C3. Label criterion 2, then the large model.** Per record: *is the line
       supported by the quoted evidence, or invented?* Then the same 30 through
       the large model and label again.
       *Done:* both models labelled on both criteria, same 30 companies.
@@ -151,10 +151,41 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       mechanically whether each quote appears word for word (whitespace
       ignored, since n8n's HTML-to-text differs from the script's) and writes
       a review file that hides the model's verdict and confidence.
-      *Haiku (2026-11-24):* 20 written lines. Quotes verbatim: 19 of 20.
-      **Grounded: 16 of 20**; not grounded 4 (g1 unsupported claim 3, g3
-      quote not real 1). Labels in `data/labels/c3_grounded_claude-haiku-5-5.csv`,
-      loaded into `labels_grounded`. Opus not run yet.
+      *Opus run (2026-11-24):* same workflow, only `MODEL` changed. 30 calls,
+      all `end_turn`, all served by Opus, input tokens identical to Haiku for
+      all 30 companies. Tokens: 255,468 in, 16,878 out incl. thinking (avg
+      563). Cost about $1.36 total, $0.045 per record at list price ($4 /
+      $20 per 1M), about 35× Haiku. Opus writes a line far more often: 29
+      lines, 1 abstention (Haiku: 20 lines, 9 abstentions), including 14
+      lines for companies it calls not real.
+      *Result (2026-11-24):*
+      | | Haiku | Opus |
+      |---|---|---|
+      | written lines | 20 | 29 |
+      | quotes verbatim (script) | 20 / 20 | 29 / 29 |
+      | **grounded (hand label)** | **17 / 20** | **29 / 29** |
+      | not grounded | 3 (all g1, unsupported claim) | 0 |
+      Labels in `data/labels/c3_grounded_<model>.csv`, loaded into
+      `labels_grounded`.
+      *Script bug, found and fixed:* the verbatim check first reported one
+      databricks quote per model as not real, and both were labelled g3.
+      Both models had returned the identical 196-character quote, which two
+      models would not invent independently. Cause: 7 of the 30 companies
+      store double-escaped HTML (`&lt;strong&gt;`), and the script removed
+      tags before decoding them. Fixed (decode, then strip tags); the script
+      now refreshes its own `evidence_verbatim` column without touching
+      labels. Both databricks rows re-judged by hand on the corrected basis.
+      *Finding — input cleaning gap:* for those 7 companies (Viralnation,
+      Retailinsights, Deliveroo, databricks, Rubrik, thequalitygroupgmbh1,
+      wppmedia) both models received HTML tags as visible text, since the
+      n8n conversion decoded the escaping only once. Same input for both
+      models, so the comparison holds; it costs tokens and adds noise. Four
+      of the seven are among the companies where a model's signal verdict
+      disagreed with the C1 label: noted as an open question, not measured.
+      *Signal verdicts:* both models 23 / 30 against C1 labels and agree
+      with each other on 28 of 30. On 6 companies both say "not real" where
+      the C1 label says real. Whether to review those labels (documented
+      second pass, original labels stay the headline) is decided in C4.
 
 - [ ] **C4. The table.** Signal accuracy, share of grounded lines, tokens per
       record, cost per record, per model. Then a confidence threshold routing
