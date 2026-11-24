@@ -1,7 +1,7 @@
 brief_id,company_name,evidence_verbatim,is_grounded,reason
 4,Alan,true,true,
 22,Checkout.com,true,true,
-12,databricks,false,false,g3
+12,databricks,true,true,
 23,Elliptic,true,true,
 24,Eye Security,true,true,
 26,Ideals,true,true,
