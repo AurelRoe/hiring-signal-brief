@@ -1,0 +1,21 @@
+brief_id,company_name,evidence_verbatim,is_grounded,reason
+4,Alan,true,true,
+22,Checkout.com,true,true,
+12,databricks,false,false,g3
+23,Elliptic,true,true,
+24,Eye Security,true,true,
+26,Ideals,true,true,
+27,Instagrid,true,true,
+11,Lightspeedhq,true,true,
+9,Netcetera,true,false,g1
+6,Retailinsights,true,true,
+13,Rubrik,true,true,
+3,Salonkee,true,true,
+14,Studytube,true,true,
+15,Tebi,true,true,
+16,thequalitygroupgmbh1,true,false,g1
+17,TransPerfect,true,true,
+29,Vanta,true,true,
+30,Vivenu,true,true,
+18,wppmedia,true,true,
+19,Zefir,true,false,g1
