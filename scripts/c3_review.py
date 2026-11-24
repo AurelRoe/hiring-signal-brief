@@ -47,9 +47,14 @@ QUOTES = str.maketrans({"“": '"', "”": '"', "„": '"', "«": '"',
 
 
 def normalize(s: str) -> str:
-    """Same text, different whitespace/quote styles/HTML entities -> equal."""
-    s = re.sub(r"<[^>]+>", " ", s or "")
-    s = html.unescape(html.unescape(s)).translate(QUOTES)
+    """Same text, different whitespace/quote styles/HTML entities -> equal.
+
+    Decode before removing tags: some postings are double-escaped
+    (`&lt;strong&gt;`), and removing tags first would leave them in the text.
+    """
+    s = html.unescape(html.unescape(s or ""))
+    s = re.sub(r"<[^>]+>", " ", s)
+    s = html.unescape(s).translate(QUOTES)
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -121,7 +126,21 @@ def main() -> int:
 
     labels = Path(f"data/labels/c3_grounded_{safe}.csv")
     if labels.exists():
-        print(f"label sheet : {labels} exists, left untouched")
+        # Labels are never touched. Only the machine-owned evidence_verbatim
+        # column is refreshed, so a fix to this script reaches existing sheets.
+        fresh = {str(r[0]): r[2] for r in rows}
+        with labels.open(newline="", encoding="utf-8") as f:
+            sheet = list(csv.DictReader(f))
+        changed = [r["company_name"] for r in sheet
+                   if fresh.get(r["brief_id"], r["evidence_verbatim"]) != r["evidence_verbatim"]]
+        for r in sheet:
+            r["evidence_verbatim"] = fresh.get(r["brief_id"], r["evidence_verbatim"])
+        with labels.open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(sheet[0].keys()))
+            w.writeheader()
+            w.writerows(sheet)
+        print(f"label sheet : {labels} exists; labels untouched, "
+              f"evidence_verbatim changed for: {changed or 'none'}")
     else:
         with labels.open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
