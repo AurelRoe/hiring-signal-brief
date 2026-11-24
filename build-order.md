@@ -130,7 +130,9 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       as returned (status `no_evidence`, never repaired); C4 reports
       "evidence missing on a written line" and "abstained" as separate rows.
       The "30 valid records" criterion is therefore read as 30 records with
-      token counts, 21 of them with a line and evidence.
+      token counts: 20 with a line and evidence, 1 with evidence but no
+      line, 9 with neither (corrected 2026-11-24; first recorded as 21 lines
+      by counting non-empty evidence instead of non-empty lines).
       *Early signal result (C4 material):* Haiku vs C1 labels 23/30. All 8
       title-filter false positives caught, 7 labelled-real companies
       rejected, 0 false "real". Too few records to call it better than the
@@ -141,6 +143,18 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       supported by the quoted evidence, or invented?* Then the same 30 through
       the large model and label again.
       *Done:* both models labelled on both criteria, same 30 companies.
+      *Setup:* rubric `data/labels/c3_rubric.md`, written before labelling:
+      a claim may rest on the quote or on the company's job titles and
+      locations; one unsupported claim fails the line (g1); inferences are
+      allowed only if they add no new fact (g2); a quote not found in the
+      postings supports nothing (g3). `scripts/c3_review.py` checks
+      mechanically whether each quote appears word for word (whitespace
+      ignored, since n8n's HTML-to-text differs from the script's) and writes
+      a review file that hides the model's verdict and confidence.
+      *Haiku (2026-11-24):* 20 written lines. Quotes verbatim: 19 of 20.
+      **Grounded: 16 of 20**; not grounded 4 (g1 unsupported claim 3, g3
+      quote not real 1). Labels in `data/labels/c3_grounded_claude-haiku-5-5.csv`,
+      loaded into `labels_grounded`. Opus not run yet.
 
 - [ ] **C4. The table.** Signal accuracy, share of grounded lines, tokens per
       record, cost per record, per model. Then a confidence threshold routing
