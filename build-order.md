@@ -284,10 +284,27 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       Checked by text search in the frozen snapshot; the labels stay as they
       are, since the rubric judges the line against its own quote.
 
-- [ ] **D3. Claude Skill — cuttable.** `SKILL.md` (quality rules, when to output
+- [x] **D3. Claude Skill** `SKILL.md` (quality rules, when to output
       nothing rather than guess) + `scripts/brief.py` for `/signal-brief
       <company>`.
       *Done:* a brief for one company, same rules the pipeline applies.
+      *Outcome (2026-11-25):* kept minimal. `.claude/skills/signal-brief/SKILL.md`
+      points to the measured prompt `prompts/brief_v1.md` instead of
+      restating it, adds the checks from C3 (quote verbatim, every claim in
+      the quote or titles, no line when the verdict is "no") and names the
+      known limits. `scripts/brief.py` gathers the postings; Claude writes
+      the brief in the session, so no API key and no new dependency.
+      *No drift by construction:* the script reads the role definition from
+      the exported n8n workflow (node "Tag jobs") at run time. Checked on all
+      3,200 snapshot jobs: 0 differences in role tags and company keys
+      against what the pipeline stored.
+      *Live run:* the API rate-limits (HTTP 429 at page 17); the script now
+      waits and retries, and fails rather than brief from a partial feed.
+      Full feed on 2026-11-25: 34 pages, 6,208 jobs (3,200 on 2026-11-22).
+      Tebi, the README example, now has 1 open target role, below the
+      threshold: the script reports no signal.
+      *Not evaluated:* the skill runs on whatever model the session uses;
+      the README's numbers do not automatically apply, and SKILL.md says so.
 
 The cost/accuracy table and the grounding rate are the deliverable. Everything
 else exists to make them credible.

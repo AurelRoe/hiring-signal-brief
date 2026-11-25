@@ -8,8 +8,8 @@ Built as a portfolio project. The pipeline is the apparatus; **the
 evaluation is the result.**
 
 > **Status: evaluation complete, project work in progress.** Pipeline,
-> frozen snapshot, hand labels and both model runs are done. Still to
-> come: a Claude Skill for single-company briefs.
+> frozen snapshot, hand labels, both model runs, the CSV export and a
+> single-company Claude Skill are done.
 
 **In short**, measured on 30 hand-labelled companies:
 
@@ -244,6 +244,15 @@ links to the original postings on Arbeitnow. It uses Opus's briefs, the
 only variant with every line grounded, and selects rows by the model's
 own verdict, so it shows what the pipeline produces, errors included.
 
+For one company on demand there is a Claude Skill,
+[`signal-brief`](.claude/skills/signal-brief/SKILL.md): in Claude Code,
+`/signal-brief <company>`. [scripts/brief.py](scripts/brief.py) fetches
+the live postings and applies the pipeline's role definition, read
+directly from the exported n8n workflow so the two cannot drift; Claude
+then writes the brief by the same prompt and checks its quote. The skill
+itself is not part of the evaluation: it runs on whatever model the
+session uses.
+
 ## Signal definition
 
 A company qualifies when it has **two or more open target roles**. The
@@ -342,7 +351,8 @@ Job data comes from the [Arbeitnow job board API](https://www.arbeitnow.com/api/
 originate from their board.
 
 The API serves a moving window, not the whole board: 3,901 jobs on
-2026-11-20, 3,200 on 2026-11-22, against roughly 11,800 advertised on
+2026-11-20, 3,200 on 2026-11-22, 6,208 on 2026-11-25, against roughly
+11,800 advertised on
 the website. That is one more reason the evaluation runs on a frozen
 snapshot.
 
@@ -419,7 +429,9 @@ sql/           schema, reset, snapshot export, evaluation table,
                salesperson CSV export
 prompts/       versioned prompt, read by n8n at run time
 scripts/       feasibility.py (spike), c1_sample.py (sample),
-               c3_review.py (quote check + review), c1_second_look.py
+               c3_review.py (quote check + review), c1_second_look.py,
+               brief.py (postings for the skill)
+.claude/skills/signal-brief/   the Claude Skill: one company on demand
 data/labels/   rubrics, hand labels, second look — committed
 data/raw/      frozen snapshot and review files — gitignored
 build-order.md working plan with every stage's measured outcome
