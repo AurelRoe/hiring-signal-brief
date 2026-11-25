@@ -265,10 +265,24 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       Checked by parsing it back: 15 rows, 14 columns, no empty line or
       quote, umlauts intact.
 
-- [ ] **D2. README.** The table at the top, then what the numbers mean and where
+- [x] **D2. README.** The table at the top, then what the numbers mean and where
       each model failed.
       *Done:* someone who has never seen the repo understands the result from the
       README alone.
+      *Outcome (2026-11-25):* most of the README was written stage by stage;
+      D2 read it as a newcomer and added: a four-line summary at the top, an
+      end-to-end example (Tebi, chosen for readability and said so), a
+      legend for the table's terms, a "Where each model failed" section with
+      the actual failing lines, a license section, and the real clone URL.
+      Deviation: the example sits above the table, by choice, so a visitor
+      sees the product before the measurement.
+      *New finding while writing it:* Haiku's 3 ungrounded claims are all
+      true. Each appears elsewhere in the postings (Netcetera's new business
+      line is the passage Opus quoted; More Nutrition's Romandy expansion is
+      in the French posting; Zefir's reactivation focus is in the BDR
+      posting). Haiku quoted the wrong passage rather than inventing facts.
+      Checked by text search in the frozen snapshot; the labels stay as they
+      are, since the rubric judges the line against its own quote.
 
 - [ ] **D3. Claude Skill — cuttable.** `SKILL.md` (quality rules, when to output
       nothing rather than guess) + `scripts/brief.py` for `/signal-brief
