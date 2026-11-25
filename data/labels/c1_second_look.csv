@@ -1,0 +1,7 @@
+company_id,company_name,original_is_correct,reviewed_is_correct,reason
+210,MY Humancapital GmbH,true,false,r1
+244,prettyTELCO GmbH,true,true,
+325,Viralnation,true,true,
+328,Wavestone Germany AG,true,true,
+331,wppmedia,true,true,
+336,Zefir,true,true,
