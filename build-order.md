@@ -187,11 +187,64 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
       the C1 label says real. Whether to review those labels (documented
       second pass, original labels stay the headline) is decided in C4.
 
-- [ ] **C4. The table.** Signal accuracy, share of grounded lines, tokens per
+- [x] **C4. The table.** Signal accuracy, share of grounded lines, tokens per
       record, cost per record, per model. Then a confidence threshold routing
       only uncertain cases to the large model, and the blended cost.
       *Done:* no empty cells, and the `evidence` failure rate reported as a
       result in its own right.
+      *Decided before computing (2026-11-25):* routing rule = Haiku answers
+      all 30; where Haiku's confidence is below **0.85**, Opus's answer is
+      used instead (the least confident third: 10 of 30). That is the
+      headline routed column. A sweep over every threshold is shown below
+      it, with no "best" threshold claimed: Haiku's confidence takes only
+      seven values, so choosing after the fact would fit these 30 companies.
+      Signal accuracy uses the C1 labels as made, blind.
+      *Outcome (2026-11-25):* `sql/eval_table.sql` recomputes everything from
+      stored tokens and labels (list prices are the only typed-in values).
+      | | Haiku | Opus | routed (< 0.85) |
+      |---|---|---|---|
+      | signal accuracy | 23 / 30 | 23 / 30 | 23 / 30 |
+      | lines written | 20 | 29 | 24 |
+      | grounded | 17 / 20 (85%) | 29 / 29 (100%) | 22 / 24 (92%) |
+      | line without evidence | 0 | 0 | 0 |
+      | abstained | 9 | 1 | 5 |
+      | tokens per record in / out | 8,516 / 864 | 8,516 / 563 | 11,560 / 1,089 |
+      | cost per record | $0.0013 | $0.0453 | $0.0180 |
+      | sent to Opus | – | – | 10 of 30 |
+      *Findings:*
+      - Haiku's confidence is a weak router. Of Haiku's 3 ungrounded lines,
+        two carry confidence ≥ 0.90, among its most confident answers.
+        Routing the least confident third catches one of them at 40% of
+        Opus's cost; removing all three needs essentially every company sent
+        to Opus. Self-reported confidence did not flag the unsupported
+        claims.
+      - Signal accuracy is 23 / 30 at every threshold: the models agree on
+        28 of 30 companies and their two disagreements cancel out.
+      - Lines without evidence: 0 for every variant. The evidence failure
+        the plan feared did not occur; abstention did, mostly in Haiku.
+      - 30 companies, 20–29 lines per model: "3 ungrounded vs 0" is a real
+        observation but a small sample, reported as counts, not rates.
+      *Second look at disputed C1 labels (2026-11-25):* on 6 companies both
+      models said "not real" where the blind label said real. Selected by
+      query (`scripts/c1_second_look.py`), re-read against the unchanged
+      rubric from postings only, logged in `data/labels/c1_second_look.csv`
+      and table `labels_signal_review`; `c1_signal.csv` untouched. Not blind:
+      model verdicts were known. Result: **1 of 6 changed** (MY Humancapital,
+      r1 recruiter for unnamed clients), 5 kept. With reviewed labels: title
+      filter 21 / 30, each model and the routed variant 24 / 30. The
+      impression that all six were obvious labelling errors did not hold.
+      In the five kept cases the models are wrong against the labels, and
+      their stored `hiring_focus` / `team_context` show two misreadings:
+      a consultancy staffing its own people on client projects read as a
+      recruiter for an unnamed client (rule 1: Wavestone both models,
+      prettyTELCO Opus); client-facing account roles at agencies and
+      service companies read as "not mainly selling" (rule 2: Viralnation,
+      wppmedia, Zefir both models, prettyTELCO Haiku). Labeller's reading:
+      these firms employ the people they advertise for. Possible prompt v2
+      fix (state that a consultancy is the employer of its own consultants),
+      untested. Context, not
+      cause: the C1 review file showed raw HTML tags for the 7
+      double-escaped companies, 2 of the 6 among them.
 
 ---
 
