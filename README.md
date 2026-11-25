@@ -11,6 +11,17 @@ evaluation is the result.**
 > frozen snapshot, hand labels and both model runs are done. Still to
 > come: a Claude Skill for single-company briefs.
 
+**In short**, measured on 30 hand-labelled companies:
+
+- **Opus grounded all 29 of its lines; Haiku 17 of 20, at 1/35 of the
+  cost.** Haiku's three misses state true facts but quote the wrong
+  passage, so the line cannot be checked from its evidence.
+- **Both models judge the hiring signal equally well (23 / 30)** and make
+  the same mistake: they reject real hiring at consultancies and agencies.
+- **The model's own confidence does not flag its grounding errors**, so
+  routing uncertain cases to the larger model buys little.
+- **No line without evidence**, from either model.
+
 ## One company, end to end
 
 **In:** three public postings on [Arbeitnow](https://www.arbeitnow.com)
@@ -58,6 +69,15 @@ for which model, is what the table below measures.
 | tokens per record (in / out) | 8,516 / 864 | 8,516 / 563 | 11,560 / 1,089 |
 | **cost per record** | **$0.0013** | **$0.0453** | **$0.0180** |
 
+- **Signal accuracy:** the model's yes/no on "is this company really
+  building a sales or marketing team?" against a hand label.
+- **Grounded:** every claim in the line is supported by the quoted
+  evidence or by the company's job titles and locations.
+- **Abstained:** the model judged the company not worth contacting and
+  wrote no line.
+- **Routed:** Haiku answers every company; where its confidence is below
+  0.85 (10 of 30), Opus's answer is used, and both calls are paid.
+
 **Baseline without any model:** the rule-based title filter alone is
 right for 22 of 30 companies (73%; 95% Wilson interval roughly 56–86%).
 
@@ -74,7 +94,9 @@ of one or two records between two columns is not a result.
 - **The models differ on grounding, not on the signal.** Both reach
   23 / 30 on the signal and agree with each other on 28 of 30 companies.
   Opus grounded every one of its 29 lines; 3 of Haiku's 20 lines contain
-  a claim its quote does not support.
+  a claim its quote does not support. None of those claims is invented:
+  each appears elsewhere in the postings. Haiku's failure is choosing the
+  wrong evidence, not making things up.
 - **Opus costs about 35× as much per record** ($0.045 vs $0.0013).
 - **Self-reported confidence is a weak router.** Two of Haiku's three
   ungrounded lines carry confidence ≥ 0.90, among its most confident
@@ -86,25 +108,72 @@ of one or two records between two columns is not a result.
 - **Haiku declines far more often.** It wrote no line for 10 companies,
   Opus for 1. Opus writes a line even for companies it calls not worth
   contacting.
-- **Both models make the same kind of error: they reject real hiring at
-  consultancies and agencies.** Both rejected all 8 companies the title
-  filter wrongly let through, but also 6 companies the hand labels call
-  real. A documented second look at those 6 changed one label (a
-  recruiter posting for unnamed clients) and confirmed five. With the
-  reviewed labels: title filter 21 / 30, every model variant 24 / 30. The
-  blind labels remain the headline. The models' own stated reasons show
-  two misreadings behind the five errors:
-  - **A consultancy staffing its own people on client projects read as a
-    recruiter posting for someone else** (rubric rule 1): Wavestone (both
-    models), prettyTELCO (Opus).
-  - **Client-facing account roles at agencies and service companies read
-    as "not mainly selling"** (rubric rule 2): Viralnation, wppmedia,
-    Zefir (both models), prettyTELCO (Haiku).
+- **Both models make the same kind of signal error: they reject real
+  hiring at consultancies and agencies.** Both rejected all 8 companies
+  the title filter wrongly let through, but also 6 companies the hand
+  labels call real. A documented second look at those 6 changed one
+  label and confirmed five. With the reviewed labels: title filter
+  21 / 30, every model variant 24 / 30. The blind labels remain the
+  headline. Details in the next section.
 
-  These are errors against the labels, not extra caution: the companies
-  employ the people they advertise for, in roles the rubric counts. A
-  sentence in the prompt stating that a consultancy is the employer of
-  its own consultants might fix the first pattern; that is untested.
+## Where each model failed
+
+### Haiku: right facts, wrong quote (3 of 20 lines)
+
+The clearest case, with Opus's answer on the same postings beside it:
+
+| | Haiku (confidence 0.92) | Opus (confidence 0.90) |
+|---|---|---|
+| Line | "I saw that Netcetera is launching its new Identity & Trust business line and is hiring a Senior Sales Manager to shape and grow it in Germany." | "I noticed G+D Netcetera has launched a new Identity & Trust business line that brings together your expertise in digital identity, authentication and trust services." |
+| Quote | *"Ready to shape and grow this business with us? Join us as Senior Sales Manager – Identity and turn market opportunities into sustainable customer relationships and growth."* | *"With our new Identity & Trust business line, we bring together our expertise in digital identity, authentication and trust services …"* |
+| Grounded? | **no** — the quote says nothing about a new business line | yes |
+
+The new business line is real: it is the passage Opus quoted. Haiku's line
+is true, but a salesperson checking it against its quote could not verify
+it. The other two follow the same pattern:
+
+- **More Nutrition** (posted by thequalitygroupgmbh1): the line says the
+  company is expanding into Romandy. The quote is about its existing Swiss
+  revenue; the expansion is in the French-language posting.
+- **Zefir:** the line says the role is about reactivating homeowners who
+  requested a valuation. The quote is about call targets; the reactivation
+  is described elsewhere in the posting.
+
+Two of the three lines carry confidence ≥ 0.90, which is why routing by
+confidence does not catch them.
+
+### Opus: no grounding failures, but lines for companies it rejects
+
+Opus grounded all 29 lines. It also wrote a line for 14 companies it
+itself judged not worth contacting. A contact list built from Opus must
+therefore filter on its verdict, which the [CSV export](sql/export_briefs.sql)
+does.
+
+### Both models: real hiring at consultancies and agencies read as not real
+
+Five companies the hand labels call real (and a documented second look
+confirmed) were rejected by both models. Their own stated reasons show
+two misreadings:
+
+- **A consultancy staffing its own people on client projects read as a
+  recruiter posting for someone else** (rubric rule 1): Wavestone (both
+  models), prettyTELCO (Opus).
+- **Client-facing account roles at agencies and service companies read
+  as "not mainly selling"** (rubric rule 2): Viralnation, wppmedia, Zefir
+  (both models), prettyTELCO (Haiku).
+
+These are errors against the labels, not extra caution: the companies
+employ the people they advertise for, in roles the rubric counts. A
+sentence in the prompt stating that a consultancy is the employer of its
+own consultants might fix the first pattern; that is untested.
+
+### One model each
+
+- **Retail Insights**, Opus wrong: it read three senior marketing titles
+  as one opening posted three times and the rest as graduate roles; the
+  hand label counts the company as a real signal.
+- **Rubrik**, Haiku wrong: it rejected a company hiring an Account
+  Executive and regional sales directors for a new product line.
 
 ## Why two accuracy numbers instead of one
 
@@ -304,7 +373,7 @@ visible in the output rather than hidden in a filter.
 ## Setup
 
 ```bash
-git clone <repo-url> && cd hiring-signal-brief
+git clone https://github.com/AurelRoe/hiring-signal-brief.git && cd hiring-signal-brief
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # set POSTGRES_PASSWORD and N8N_ENCRYPTION_KEY
@@ -360,3 +429,12 @@ build-order.md working plan with every stage's measured outcome
 
 No frontend, no deployment, no multi-client logic, no agent that decides
 its own steps. A fixed pipeline, measured, with honest numbers.
+
+## License
+
+Code, prompts, rubrics and labels: [MIT](LICENSE). Job postings and the
+text quoted from them belong to their publishers and come via
+[Arbeitnow](https://www.arbeitnow.com); they are not covered by this
+license. The few short quotes in this README are reproduced for
+illustration, with links to the postings; the postings themselves are
+not stored in the repository.
