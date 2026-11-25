@@ -7,37 +7,69 @@ is actually true, and what it cost.
 Built as a portfolio project. The pipeline is the apparatus; **the
 evaluation is the result.**
 
-> **Status: work in progress.** Data pipeline, frozen snapshot, hand
-> labels for criterion 1 and the small-model run are done. Grounding
-> labels and the large-model run are next. Every number below marked
-> *not measured* is exactly that — no placeholder figures appear in this
-> README.
+> **Status: evaluation complete, project work in progress.** Pipeline,
+> frozen snapshot, hand labels and both model runs are done. Still to
+> come: a CSV export and a Claude Skill for single-company briefs.
 
 ## Result
 
-| | small model<br>`claude-haiku-5-5` | large model<br>`claude-opus-5-5` | confidence-routed |
+| | small model<br>`claude-haiku-5-5` | large model<br>`claude-opus-5-5` | routed<br>Haiku, Opus where Haiku's confidence < 0.85 |
 |---|---|---|---|
-| signal accuracy (vs. hand labels) | 23 / 30 | *not measured* | *not measured* |
-| share of grounded lines | *not measured* | *not measured* | *not measured* |
-| line written without evidence | 0 / 30 | *not measured* | *not measured* |
-| abstained (no line, no evidence) | 9 / 30 | *not measured* | *not measured* |
-| tokens per record (in / out) | 8,516 / 864 | *not measured* | *not measured* |
-| cost per record | $0.0013 | *not measured* | *not measured* |
+| signal accuracy (vs. blind hand labels) | 23 / 30 | 23 / 30 | 23 / 30 |
+| lines written | 20 | 29 | 24 |
+| **lines grounded in their evidence** | **17 / 20** | **29 / 29** | **22 / 24** |
+| line written without evidence | 0 | 0 | 0 |
+| no line written (abstained) | 10 | 1 | 6 |
+| tokens per record (in / out) | 8,516 / 864 | 8,516 / 563 | 11,560 / 1,089 |
+| **cost per record** | **$0.0013** | **$0.0453** | **$0.0180** |
 
 **Baseline without any model:** the rule-based title filter alone is
 right for 22 of 30 companies (73%; 95% Wilson interval roughly 56–86%).
 
-Measured on 30 hand-labelled companies against a frozen data snapshot,
-so both models see identical input. With 30 records, one record is about
-3 percentage points: a gap of one or two records between two columns is
-not a result. Cost is computed from the token counts the API reports, at
-Anthropic's list prices at the time of the run; output tokens include
-the model's thinking.
+Measured on 30 hand-labelled companies against a frozen data snapshot;
+both models received byte-identical input (identical input token counts
+for all 30). Every number is recomputed from stored tokens and labels by
+[sql/eval_table.sql](sql/eval_table.sql). Cost uses Anthropic's list
+prices at the time of the runs; output tokens include the model's
+thinking. With 30 records, one record is about 3 percentage points: a gap
+of one or two records between two columns is not a result.
 
-**What the small model does differently from the filter:** it rejects
-all 8 companies the title filter wrongly let through, and never calls a
-company "real" that the hand labels call false. It is too strict, not
-too lenient: 7 companies labelled as real were rejected.
+### What the numbers say
+
+- **The models differ on grounding, not on the signal.** Both reach
+  23 / 30 on the signal and agree with each other on 28 of 30 companies.
+  Opus grounded every one of its 29 lines; 3 of Haiku's 20 lines contain
+  a claim its quote does not support.
+- **Opus costs about 35× as much per record** ($0.045 vs $0.0013).
+- **Self-reported confidence is a weak router.** Two of Haiku's three
+  ungrounded lines carry confidence ≥ 0.90, among its most confident
+  answers. Routing the least confident third to Opus catches one of them
+  at 40% of Opus's cost; catching all three means sending nearly every
+  company to Opus. The threshold (0.85) was fixed before the results were
+  computed; the full sweep is in the query output, with no "best"
+  threshold claimed.
+- **Haiku declines far more often.** It wrote no line for 10 companies,
+  Opus for 1. Opus writes a line even for companies it calls not worth
+  contacting.
+- **Both models make the same kind of error: they reject real hiring at
+  consultancies and agencies.** Both rejected all 8 companies the title
+  filter wrongly let through, but also 6 companies the hand labels call
+  real. A documented second look at those 6 changed one label (a
+  recruiter posting for unnamed clients) and confirmed five. With the
+  reviewed labels: title filter 21 / 30, every model variant 24 / 30. The
+  blind labels remain the headline. The models' own stated reasons show
+  two misreadings behind the five errors:
+  - **A consultancy staffing its own people on client projects read as a
+    recruiter posting for someone else** (rubric rule 1): Wavestone (both
+    models), prettyTELCO (Opus).
+  - **Client-facing account roles at agencies and service companies read
+    as "not mainly selling"** (rubric rule 2): Viralnation, wppmedia,
+    Zefir (both models), prettyTELCO (Haiku).
+
+  These are errors against the labels, not extra caution: the companies
+  employ the people they advertise for, in roles the rubric counts. A
+  sentence in the prompt stating that a consultancy is the employer of
+  its own consultants might fix the first pattern; that is untested.
 
 ## Why two accuracy numbers instead of one
 
@@ -60,10 +92,10 @@ The plan counted every empty `evidence` field as a failure. The first
 run showed two different cases behind it:
 
 - **A line written without evidence** — the real failure: a claim that
-  cannot be checked. Small model: 0 of 30.
-- **No line and no evidence** — the model judged the company not worth
-  contacting and wrote nothing. Small model: 9 of 30, all with
-  `is_real_signal = false`.
+  cannot be checked. Both models: 0.
+- **No line written** — the model judged the company not worth
+  contacting and wrote nothing. Haiku: 10 (9 with no quote either, 1
+  with a quote but no line), all with `is_real_signal = false`. Opus: 1.
 
 Counting the second as a failure would punish the model for declining
 to guess. The stored data is left exactly as returned; the two cases are
@@ -154,9 +186,42 @@ exactly what the 22 / 30 baseline measures.
   [prompt](prompts/brief_v1.md), same input, same effort setting,
   structured output. The API's refusal fallback is off: it would
   silently answer with a different model than the one being scored.
+- **Quotes are checked by script, not by eye.**
+  [scripts/c3_review.py](scripts/c3_review.py) tests whether each
+  evidence quote appears word for word in the postings. All 49 quotes
+  (Haiku 20, Opus 29) do. The first version of the check wrongly flagged
+  one quote per model; both models had returned the identical quote, which
+  pointed to the script. Cause and fix are documented in
+  [build-order.md](build-order.md).
+- **Routing threshold fixed in advance.** Written into the plan, dated,
+  before the routed numbers were computed.
+- **Disputed labels: documented second look, not silent correction.**
+  Where both models disagreed with a hand label, the postings were re-read
+  against the unchanged rubric
+  ([c1_second_look.csv](data/labels/c1_second_look.csv)). The original
+  labels file is untouched; the reviewed result is reported next to the
+  headline, never instead of it.
 - **Tokens are the ground truth.** Every call, including failed ones, is
   logged with the token counts the API reports. Cost is derived from
   them, since prices change.
+
+## Limitations
+
+- **30 companies, one labeller.** Differences of a few records are within
+  noise; results are reported as counts for that reason.
+- **Two models from one family.** Haiku and Opus agree on 28 of 30
+  verdicts. That agreement is not independent confirmation: they share a
+  provider and received the same rubric in the prompt, and they share the
+  same misreading of consultancies and agencies.
+- **The second look was not blind.** The model verdicts were known when
+  the six disputed labels were re-read.
+- **Input cleaning gap.** 7 of the 30 companies store double-escaped HTML;
+  both models received those postings with HTML tags as visible text.
+  Same input for both, so the comparison holds, but it cost tokens and
+  added noise. The same 7 appeared tag-cluttered in the hand-labelling
+  file.
+- **One prompt version.** Every result is for `prompts/brief_v1.md` at
+  one effort setting. Neither was tuned.
 
 ## Data source
 
@@ -218,8 +283,14 @@ neither is stored in this repo:
 - **Header Auth** — name `x-api-key`, value: an Anthropic API key.
 
 Import the two workflows from `n8n/` and attach the credentials. Order
-of a full run: *Fetch Arbeitnow* → `sql/export_snapshot.sql` →
-`scripts/c1_sample.py` and hand labels → *Brief companies*.
+of a full run:
+
+1. *Fetch Arbeitnow* (n8n), then `sql/export_snapshot.sql` to freeze
+2. `scripts/c1_sample.py`, then signal labels by hand
+3. *Brief companies* (n8n), once per model (`MODEL` in *Build requests*)
+4. `scripts/c3_review.py <model>`, then grounding labels by hand
+5. `scripts/c1_second_look.py` for labels both models dispute
+6. `sql/eval_table.sql` for the table
 
 The feasibility spike (fetches the live feed, prints how many companies
 clear the threshold) still runs on its own:
@@ -232,10 +303,11 @@ python scripts/feasibility.py --pages 150
 
 ```
 n8n/           exported workflows: fetch-arbeitnow, brief-companies
-sql/           schema, reset, snapshot export
+sql/           schema, reset, snapshot export, evaluation table
 prompts/       versioned prompt, read by n8n at run time
-scripts/       feasibility.py (spike), c1_sample.py (evaluation sample)
-data/labels/   rubric and hand labels — committed
+scripts/       feasibility.py (spike), c1_sample.py (sample),
+               c3_review.py (quote check + review), c1_second_look.py
+data/labels/   rubrics, hand labels, second look — committed
 data/raw/      frozen snapshot and review files — gitignored
 build-order.md working plan with every stage's measured outcome
 ```
