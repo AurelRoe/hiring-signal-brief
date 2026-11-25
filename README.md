@@ -7,10 +7,6 @@ is actually true, and what it cost.
 Built as a portfolio project. The pipeline is the apparatus; **the
 evaluation is the result.**
 
-> **Status: evaluation complete, project work in progress.** Pipeline,
-> frozen snapshot, hand labels, both model runs, the CSV export and a
-> single-company Claude Skill are done.
-
 **In short**, measured on 30 hand-labelled companies:
 
 - **Opus grounded all 29 of its lines; Haiku 17 of 20, at 1/35 of the
