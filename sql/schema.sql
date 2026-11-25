@@ -147,6 +147,16 @@ create table if not exists labels_signal (
     labelled_at timestamptz not null default now()
 );
 
+-- Added in C4: a documented second look at the C1 labels that BOTH models
+-- disputed. Kept apart from labels_signal on purpose: the blind labels stay
+-- the headline, and this review was not blind (model verdicts were known).
+create table if not exists labels_signal_review (
+    company_id          bigint primary key references labels_signal(company_id) on delete cascade,
+    reviewed_is_correct boolean not null,
+    reason              text,
+    reviewed_at         timestamptz not null default now()
+);
+
 create table if not exists labels_grounded (
     brief_id    bigint primary key references briefs(id) on delete cascade,
     is_grounded boolean not null,
