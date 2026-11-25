@@ -250,8 +250,20 @@ Two model paths, cheap and expensive, with a measured trade-off between them.
 
 ## Phase D — Surface
 
-- [ ] **D1. CSV export.** Export node over the results table.
+- [x] **D1. CSV export.** Export node over the results table.
       *Done:* a file a salesperson could actually open.
+      *Outcome (2026-11-25):* `sql/export_briefs.sql` via psql instead of an
+      n8n node: n8n's repo folders are mounted read-only, as in B4. Opus
+      briefs (all its lines grounded in C3) for the companies Opus itself
+      calls a real signal and wrote a line for: 15 rows, selected by the
+      model's verdict, not the hand labels. Formatted for German Excel:
+      semicolon separator, UTF-8 byte-order mark, comma decimals. Columns:
+      company, role count, locations, hiring focus, team context, line,
+      evidence quote, confidence, first/latest posting, job links (all on
+      Arbeitnow's country domains), source credit, model, data date. Written
+      to `data/exports/briefs_opus.csv`, gitignored (job-derived text).
+      Checked by parsing it back: 15 rows, 14 columns, no empty line or
+      quote, umlauts intact.
 
 - [ ] **D2. README.** The table at the top, then what the numbers mean and where
       each model failed.

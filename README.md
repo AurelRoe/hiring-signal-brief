@@ -9,7 +9,42 @@ evaluation is the result.**
 
 > **Status: evaluation complete, project work in progress.** Pipeline,
 > frozen snapshot, hand labels and both model runs are done. Still to
-> come: a CSV export and a Claude Skill for single-company briefs.
+> come: a Claude Skill for single-company briefs.
+
+## One company, end to end
+
+**In:** three public postings on [Arbeitnow](https://www.arbeitnow.com)
+that the title filter matched as sales roles (data as of 2026-11-22;
+the postings may since have closed).
+
+| Posting | Location |
+|---|---|
+| [Account Executive – Cologne/Düsseldorf](https://www.arbeitnow.com/jobs/companies/tebi/account-executive-cologne-dusseldorf-227320) | Düsseldorf |
+| [Account Executive](https://www.arbeitnow.nl/jobs/companies/tebi/account-executive-amsterdam-210815) | Amsterdam |
+| [Jr Account Executive](https://www.arbeitnow.nl/jobs/companies/tebi/jr-account-executive-amsterdam-84420) | Amsterdam |
+
+**Out:** the brief for **Tebi**, written by `claude-opus-5-5`.
+
+| Field | |
+|---|---|
+| Real hiring signal? | yes, confidence 0.92 |
+| Hiring focus | Tebi is hiring field-oriented Account Executives to sell its connected restaurant management system to hospitality businesses. |
+| Team context | Three sales openings: an Account Executive and a Junior Account Executive in Amsterdam (English and Dutch) and the first Account Executive for NRW based in Cologne/Düsseldorf (English and German), all targeting restaurants, cafés and bars. |
+| Evidence (quoted) | *"We're looking for our first hospitality fan Sales person in NRW."* |
+| **Personalization line** | **"I saw Tebi is looking for its first hospitality sales person in NRW, alongside Account Executive roles in Amsterdam."** |
+
+**Checked:**
+
+| Check | Result | How |
+|---|---|---|
+| Is the signal real? | ✓ | hand label, made before any model ran |
+| Is the quote real? | ✓ | script: appears word for word in the posting |
+| Is the line grounded? | ✓ | hand label: "first … sales person in NRW" is in the quote; "Account Executive roles in Amsterdam" is in the job titles and locations |
+| Cost | $0.023 | 4,673 tokens in, 240 out, at list price |
+
+This example was picked for readability (a short English quote), not as
+a typical case. How often the briefs hold up across all 30 companies, and
+for which model, is what the table below measures.
 
 ## Result
 
@@ -131,7 +166,14 @@ Brief companies   (n8n/brief-companies.json)
 
 The pre-filter before the LLM step is where the token cost is saved. It
 is deliberately cheap and rule-based: a title match and a count, nothing
-that needs a model. The CSV export is not built yet.
+that needs a model.
+
+The last step, [sql/export_briefs.sql](sql/export_briefs.sql), turns the
+results into a contact list a salesperson can open in Excel: one row per
+company the model recommends, with the line, the quote it rests on, and
+links to the original postings on Arbeitnow. It uses Opus's briefs, the
+only variant with every line grounded, and selects rows by the model's
+own verdict, so it shows what the pipeline produces, errors included.
 
 ## Signal definition
 
@@ -291,6 +333,7 @@ of a full run:
 4. `scripts/c3_review.py <model>`, then grounding labels by hand
 5. `scripts/c1_second_look.py` for labels both models dispute
 6. `sql/eval_table.sql` for the table
+7. `sql/export_briefs.sql` for the salesperson CSV (command in the file)
 
 The feasibility spike (fetches the live feed, prints how many companies
 clear the threshold) still runs on its own:
@@ -303,7 +346,8 @@ python scripts/feasibility.py --pages 150
 
 ```
 n8n/           exported workflows: fetch-arbeitnow, brief-companies
-sql/           schema, reset, snapshot export, evaluation table
+sql/           schema, reset, snapshot export, evaluation table,
+               salesperson CSV export
 prompts/       versioned prompt, read by n8n at run time
 scripts/       feasibility.py (spike), c1_sample.py (sample),
                c3_review.py (quote check + review), c1_second_look.py
