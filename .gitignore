@@ -6,3 +6,6 @@ data/raw/
 
 # Hand labels are committed (no job text in them)
 !data/labels/*.csv
+
+# Claude Code: project skills are committed, local settings are not
+.claude/settings.local.json
